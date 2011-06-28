@@ -69,10 +69,12 @@ module LDAP
     @environment = env
   end
   
-  def self.configuration(attrs = { })
-    @environment.merge attrs
+  def self.configuration(attrs = {})
+    attrs.merge!(javax.naming.Context::INITIAL_CONTEXT_FACTORY => 'com.sun.jndi.ldap.LdapCtxFactory')
+    @environment.merge(attrs)
   end
 end
+
 
 require 'ldap/constants'
 require 'ldap/conn'

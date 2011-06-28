@@ -28,7 +28,7 @@ Rake::Task['manifest'].invoke # Always regen manifest, so Hoe has up-to-date lis
 
 begin
   require 'hoe'
-  Hoe.new("jruby-ldap", "0.0.1") do |p|
+  Hoe.new("jruby-ldap", "0.0.2") do |p|
     p.rubyforge_name = "jruby-extras"
     p.url = "http://jruby-extras.rubyforge.org/jruby-ldap"
     p.author = "Ola Bini"
