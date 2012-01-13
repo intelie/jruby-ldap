@@ -1,4 +1,4 @@
-module LDAP  
+module LDAP
   module ConnImplementation
     def controls(*args)
       raise "NOT IMPLEMENTED"
@@ -7,12 +7,12 @@ module LDAP
     def get_option(*args)
       raise "NOT IMPLEMENTED"
     end
-    
+
     # Modify the RDN of the entry with DN, +dn+, giving it the new RDN,
     # +new_rdn+. If +delete_old_rdn+ is *true*, the old RDN value will be deleted
     # from the entry.
     def modrdn(dn, new_rdn, delete_old_rdn)
-      begin 
+      begin
         if delete_old_rdn
           @context.rename(dn, new_rdn)
         else
@@ -46,7 +46,7 @@ module LDAP
     def referrals(*args)
       raise "NOT IMPLEMENTED"
     end
-    
+
     def result2error(*args)
       raise "NOT IMPLEMENTED"
     end
@@ -54,16 +54,16 @@ module LDAP
     def __jndi_context
       @context
     end
-    
+
     def initialize(host='localhost', port=LDAP_PORT)
       @host = host
       @port = port
     end
-    
+
     def err
       @err || 0
     end
-    
+
     def err2string(err)
       LDAP.err2string(err)
     end
@@ -80,9 +80,15 @@ module LDAP
       base_env[javax.naming.Context::SECURITY_PRINCIPAL] = dn if dn
       base_env[javax.naming.Context::SECURITY_CREDENTIALS] = password if password
 
+      if @opts[:timeout]
+        base_env["com.sun.jndi.ldap.connect.timeout"] = @opts[:timeout].to_s
+        base_env["com.sun.jndi.ldap.read.timeout"] = @opts[:timeout].to_s
+      end
+
+
       @current_env = java.util.Hashtable.new(LDAP::configuration(base_env))
 
-      begin 
+      begin
         @context = javax.naming.directory.InitialDirContext.new(@current_env)
         @err = 0
       rescue javax.naming.NoPermissionException => e
@@ -92,12 +98,12 @@ module LDAP
         @err = -1
         raise LDAP::ResultError.wrap(LDAP::err2string(@err), e)
       end
-      
+
       if !block_given?
         return self
       end
 
-      begin 
+      begin
         yield self
 
         return nil
@@ -105,17 +111,17 @@ module LDAP
         unbind
       end
     end
-    
+
     def set_option(opt, value)
       @err = 0
     end
-    
+
     def add(dn, attrs)
       raise LDAP::InvalidDataError, "The LDAP handler has already unbound." unless bound?
 
       attrs = LDAP::hash2mods(LDAP::LDAP_MOD_ADD, attrs) if attrs.is_a?(Hash)
 
-      begin 
+      begin
         @context.create_subcontext(dn, LDAP::Mod.to_java_attributes(*attrs))
         @err = 0
       rescue javax.naming.NameNotFoundException => e
@@ -142,7 +148,7 @@ module LDAP
 
       attrs = LDAP::hash2mods(LDAP::LDAP_MOD_REPLACE, attrs) if attrs.is_a?(Hash)
 
-      begin 
+      begin
         @context.modify_attributes(dn, LDAP::Mod.to_java_modification_items(*attrs))
         @err = 0
       rescue javax.naming.NameNotFoundException => e
@@ -164,7 +170,7 @@ module LDAP
 
       self
     end
-    
+
     def delete(dn)
       raise LDAP::InvalidDataError, "The LDAP handler has already unbound." unless bound?
 
@@ -186,7 +192,7 @@ module LDAP
       end
       self
     end
-    
+
     def search(base_dn, scope, filter, attrs=nil, attrsonly=nil, sec=0, usec=0, s_attr=nil, s_proc=nil)
       raise LDAP::InvalidDataError, "The LDAP handler has already unbound." unless bound?
 
@@ -204,7 +210,7 @@ module LDAP
         controls.time_limit = usec/1000 + sec*1000
       end
 
-      begin 
+      begin
         @context.search(base_dn, filter, controls).each do |val|
           yield LDAP::Entry.create_from_search_result(val)
         end
@@ -231,30 +237,31 @@ module LDAP
       end
       arr
     end
-    
+
     def unbind
       raise LDAP::InvalidDataError, "The LDAP handler has already unbound." unless bound?
       @context.close
       @err = 0
       @context = nil
     end
-    
+
     def bound?
       !@context.nil?
     end
-  end   
-  
+  end
+
 
   class Conn
     class << self
       alias open new
     end
 
-    def initialize(host='localhost', port=LDAP_PORT)
+    def initialize(host='localhost', port=LDAP_PORT, opts = {})
       super
       @use_ssl = false
+      @opts = opts
     end
-    
+
     include ConnImplementation
   end
 
@@ -263,11 +270,12 @@ module LDAP
       alias open new
     end
 
-    def initialize(host='localhost', port=LDAPS_PORT)
+    def initialize(host='localhost', port=LDAPS_PORT, opts = {})
       super
       @use_ssl = true
+      @opts = opts
     end
-    
+
     include ConnImplementation
   end
 end
